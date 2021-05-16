@@ -98,43 +98,39 @@ namespace UnityEngine.Rendering.Universal
             return m_ApplyToSortingLayers != null ? Array.IndexOf(m_ApplyToSortingLayers, layer) >= 0 : false;
         }
 
-        private void Awake()
-        {
-            if (m_ApplyToSortingLayers == null)
+        private void Awake() {
+            if(m_ApplyToSortingLayers == null)
                 m_ApplyToSortingLayers = SetDefaultSortingLayers();
-
+ 
             Bounds bounds = new Bounds(transform.position, Vector3.one);
-
+         
             Renderer renderer = GetComponent<Renderer>();
             if (renderer != null)
             {
                 bounds = renderer.bounds;
             }
-#if USING_PHYSICS2D_MODULE
             else
             {
                 Collider2D collider = GetComponent<Collider2D>();
                 if (collider != null)
-                    bounds = collider.bounds;
+                    if (collider.GetType() == typeof(PolygonCollider2D)) {
+                        m_ShapePath = Array.ConvertAll<Vector2, Vector3>(((PolygonCollider2D)collider).GetPath(0), vec2To3);
+                        m_UseRendererSilhouette = false;
+                    } else {
+                        bounds = collider.bounds;
+                    }
             }
-#endif
-            Vector3 inverseScale = Vector3.zero;
-            Vector3 relOffset = transform.position;
-
-            if (transform.lossyScale.x != 0 && transform.lossyScale.y != 0)
-            {
-                inverseScale = new Vector3(1 / transform.lossyScale.x, 1 / transform.lossyScale.y);
-                relOffset = new Vector3(inverseScale.x * -transform.position.x, inverseScale.y * -transform.position.y);
-            }
-
+ 
+            Vector3 relOffset = bounds.center - transform.position;
+ 
             if (m_ShapePath == null || m_ShapePath.Length == 0)
             {
                 m_ShapePath = new Vector3[]
                 {
-                    relOffset + new Vector3(inverseScale.x * bounds.min.x, inverseScale.y * bounds.min.y),
-                    relOffset + new Vector3(inverseScale.x * bounds.min.x, inverseScale.y * bounds.max.y),
-                    relOffset + new Vector3(inverseScale.x * bounds.max.x, inverseScale.y * bounds.max.y),
-                    relOffset + new Vector3(inverseScale.x * bounds.max.x, inverseScale.y * bounds.min.y),
+                    relOffset + new Vector3(-bounds.extents.x, -bounds.extents.y),
+                    relOffset + new Vector3(bounds.extents.x, -bounds.extents.y),
+                    relOffset + new Vector3(bounds.extents.x, bounds.extents.y),
+                    relOffset + new Vector3(-bounds.extents.x, bounds.extents.y)
                 };
             }
         }
